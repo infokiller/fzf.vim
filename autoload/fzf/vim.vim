@@ -380,7 +380,7 @@ endfunction
 " ------------------------------------------------------------------
 function! s:all_files()
   return extend(
-  \ filter(reverse(copy(v:oldfiles)), "filereadable(expand(v:val))"),
+  \ reverse(copy(v:oldfiles)),
   \ filter(map(s:buflisted(), 'bufname(v:val)'), '!empty(v:val)'))
 endfunction
 
