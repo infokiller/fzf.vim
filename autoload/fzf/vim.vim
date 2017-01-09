@@ -532,7 +532,7 @@ function! fzf#vim#_recent_files()
   return fzf#vim#_uniq(map(
     \ filter([expand('%')], 'len(v:val)')
     \   + filter(map(fzf#vim#_buflisted_sorted(), 'bufname(v:val)'), 'len(v:val)')
-    \   + filter(copy(v:oldfiles), "filereadable(fnamemodify(v:val, ':p'))"),
+    \   + copy(v:oldfiles),
     \ 'fnamemodify(v:val, ":~:.")'))
 endfunction
 
