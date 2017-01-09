@@ -401,14 +401,14 @@ function! s:history_sink(type, lines)
 
   let key  = a:lines[0]
   let item = matchstr(a:lines[1], ' *[0-9]\+ *\zs.*')
+  call histadd(a:type, item)
+  redraw
   if key == 'ctrl-e'
-    call histadd(a:type, item)
-    redraw
-    call feedkeys(a:type."\<up>")
+    let suffix = ""
   else
-    let g:__fzf_command = "normal ".a:type.item."\<cr>"
-    call feedkeys("\<plug>(-fzf-vim-do)")
+    let suffix = "\<cr>"
   endif
+  call feedkeys(a:type."\<up>".suffix)
 endfunction
 
 function! s:cmd_history_sink(lines)
