@@ -878,11 +878,11 @@ function! s:command_sink(lines)
     return
   endif
   let cmd = matchstr(a:lines[1], s:nbs.'\zs\S*\ze'.s:nbs)
+  call histadd(":", cmd)
   if empty(a:lines[0])
     call feedkeys(':'.cmd.(a:lines[1][0] == '!' ? '' : ' '))
   else
     execute cmd
-    call histadd(":", cmd)
   endif
 endfunction
 
