@@ -485,7 +485,7 @@ function! s:history_sink(type, lines)
   call histadd(a:type, item)
   redraw
   if key == 'ctrl-e'
-    call feedkeys(a:type."\<up>")
+    call feedkeys(a:type."\<up>", 'n')
   else
     let g:__fzf_command = "normal ".prefix.item."\<cr>"
     call feedkeys("\<plug>(-fzf-vim-do)")
