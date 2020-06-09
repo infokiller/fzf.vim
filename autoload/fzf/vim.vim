@@ -30,7 +30,7 @@ set cpo&vim
 
 let s:is_win = has('win32') || has('win64')
 let s:layout_keys = ['window', 'up', 'down', 'left', 'right']
-let s:bin_dir = expand('<sfile>:h:h:h').'/bin/'
+let s:bin_dir = expand('<sfile>:p:h:h:h').'/bin/'
 let s:bin = {
 \ 'preview': s:bin_dir.'preview.sh',
 \ 'tags':    s:bin_dir.'tags.pl' }
@@ -41,10 +41,10 @@ if s:is_win
   else
     let s:bin.preview = fnamemodify(s:bin.preview, ':8')
   endif
-  let s:bin.preview = 'bash '.escape(s:bin.preview, '\')
 endif
 
 let s:wide = 120
+let s:warned = 0
 
 function! s:extend_opts(dict, eopts, prepend)
   if empty(a:eopts)
@@ -76,6 +76,8 @@ endfunction
 
 " [[options to wrap], [preview window expression], [toggle-preview keys...]]
 function! fzf#vim#with_preview(...)
+  let bash_path = exepath('bash')
+  let is_wsl_bash = bash_path =~? 'Windows[/\\]system32[/\\]bash.exe$'
   " Default options
   let options = {}
   let window = ''
@@ -86,6 +88,14 @@ function! fzf#vim#with_preview(...)
   if len(args) && type(args[0]) == s:TYPE.dict
     let options = copy(args[0])
     call remove(args, 0)
+  endif
+
+  if empty(bash_path)
+    if !s:warned
+      call s:warn('Preview window not supported (bash not found in PATH)')
+      let s:warned = 1
+    endif
+    return options
   endif
 
   " Placeholder expression (TODO/TBD: undocumented)
@@ -104,7 +114,14 @@ function! fzf#vim#with_preview(...)
   if len(window)
     let preview += ['--preview-window', window]
   endif
-  let preview += ['--preview', (s:is_win ? s:bin.preview : fzf#shellescape(s:bin.preview)).' '.placeholder]
+  if s:is_win
+    let preview_cmd = 'bash '.(is_wsl_bash
+    \ ? substitute(substitute(s:bin.preview, '^\([A-Z]\):', '/mnt/\L\1', ''), '\', '/', 'g')
+    \ : escape(s:bin.preview, '\'))
+  else
+    let preview_cmd = fzf#shellescape(s:bin.preview)
+  endif
+  let preview += ['--preview', preview_cmd.' '.placeholder]
 
   if len(args)
     call extend(preview, ['--bind', join(map(args, 'v:val.":toggle-preview"'), ',')])
@@ -469,10 +486,10 @@ endfunction
 " ------------------------------------------------------------------
 " History[:/]
 " ------------------------------------------------------------------
-function! s:all_files()
+function! fzf#vim#_recent_files()
   return fzf#vim#_uniq(map(
     \ filter([expand('%')], 'len(v:val)')
-    \   + filter(map(s:buflisted_sorted(), 'bufname(v:val)'), 'len(v:val)')
+    \   + filter(map(fzf#vim#_buflisted_sorted(), 'bufname(v:val)'), 'len(v:val)')
     \   + filter(copy(v:oldfiles), "filereadable(fnamemodify(v:val, ':p'))"),
     \ 'fnamemodify(v:val, ":~:.")'))
 endfunction
@@ -531,7 +548,7 @@ endfunction
 
 function! fzf#vim#history(...)
   return s:fzf('history-files', {
-  \ 'source':  s:all_files(),
+  \ 'source':  fzf#vim#_recent_files(),
   \ 'options': ['-m', '--header-lines', !empty(expand('%')), '--prompt', 'Hist> ']
   \}, a:000)
 endfunction
@@ -618,7 +635,7 @@ function! s:bufopen(lines)
   execute 'buffer' b
 endfunction
 
-function! s:format_buffer(b)
+function! fzf#vim#_format_buffer(b)
   let name = bufname(a:b)
   let line = exists('*getbufinfo') ? getbufinfo(a:b)[0]['lnum'] : 0
   let name = empty(name) ? '[No Name]' : fnamemodify(name, ":p:~:.")
@@ -637,7 +654,7 @@ function! s:sort_buffers(...)
   return b1 < b2 ? 1 : -1
 endfunction
 
-function! s:buflisted_sorted()
+function! fzf#vim#_buflisted_sorted()
   return sort(s:buflisted(), 's:sort_buffers')
 endfunction
 
@@ -645,7 +662,7 @@ function! fzf#vim#buffers(...)
   let [query, args] = (a:0 && type(a:1) == type('')) ?
         \ [a:1, a:000[1:]] : ['', a:000]
   return s:fzf('buffers', {
-  \ 'source':  map(s:buflisted_sorted(), 's:format_buffer(v:val)'),
+  \ 'source':  map(fzf#vim#_buflisted_sorted(), 'fzf#vim#_format_buffer(v:val)'),
   \ 'sink*':   s:function('s:bufopen'),
   \ 'options': ['+m', '-x', '--tiebreak=index', '--header-lines=1', '--ansi', '-d', '\t', '--with-nth', '2..', '-n', '2,1..2', '--prompt', 'Buf> ', '--query', query]
   \}, args)
@@ -655,11 +672,10 @@ endfunction
 " Ag / Rg
 " ------------------------------------------------------------------
 function! s:ag_to_qf(line, has_column)
-  let parts = split(a:line, '[^:]\zs:\ze[^:]')
-  let text = join(parts[(a:has_column ? 3 : 2):], ':')
-  let dict = {'filename': &acd ? fnamemodify(parts[0], ':p') : parts[0], 'lnum': parts[1], 'text': text}
+  let parts = matchlist(a:line, '\(.\{-}\):\(\d\+\)\%(:\(\d\+\)\)\?\%(:\(.*\)\)\?')
+  let dict = {'filename': &acd ? fnamemodify(parts[1], ':p') : parts[1], 'lnum': parts[2], 'text': parts[4]}
   if a:has_column
-    let dict.col = parts[2]
+    let dict.col = parts[3]
   endif
   return dict
 endfunction
@@ -1019,7 +1035,7 @@ function! fzf#vim#helptags(...)
     silent! call delete(s:helptags_script)
   endif
   let s:helptags_script = tempname()
-  call writefile(['/('.(s:is_win ? '^[A-Z]:\/.*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)'], s:helptags_script)
+  call writefile(['/('.(s:is_win ? '^[A-Z]:[\/\\].*?[^:]' : '.*?').'):(.*?)\t(.*?)\t/; printf(qq('.s:green('%-40s', 'Label').'\t%s\t%s\n), $2, $3, $1)'], s:helptags_script)
   return s:fzf('helptags', {
   \ 'source':  'grep -H ".*" '.join(map(tags, 'fzf#shellescape(v:val)')).
     \ ' | perl -n '.fzf#shellescape(s:helptags_script).' | sort',
