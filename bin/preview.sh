@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+: "${XDG_DATA_HOME:=${HOME}/.local/share}"
+
 REVERSE="\x1b[7m"
 RESET="\x1b[m"
 
@@ -37,6 +39,30 @@ fi
 
 if [ -z "$CENTER" ]; then
   CENTER=0
+fi
+
+if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
+  HIGHLIGHT_MARKLINES_PLUGIN="${XDG_DATA_HOME}/highlight/plugins/mark_lines.lua"
+  HIGHLIGHT_BASE_CMD=(highlight --out-format=truecolor --line-numbers
+    --line-number-length=0 --quiet --force)
+  if ((CENTER)) && [ -f "${HIGHLIGHT_MARKLINES_PLUGIN}" ]; then
+    # lines="$(tput lines)" || exit 1
+    # start_line=$((CENTER - (lines / 2) ))
+    # start_line=$((start_line > 0 ? start_line : 1))
+    # Highlight can handle line ranges that are out of bound, so we don't need
+    # to verify the end line is in range.
+    # end_line=$((start_line + lines))
+    # cmd=("${HIGHLIGHT_BASE_CMD[@]}" --plug-in "${HIGHLIGHT_MARKLINES_PLUGIN}"
+    #   --plug-in-param "${CENTER}" --line-number-start="${start_line}"
+    #   --line-range="${start_line}-${end_line}" -- "$FILE")
+    # printf '%s\n' "${cmd[@]}"
+    # exit
+    "${HIGHLIGHT_BASE_CMD[@]}" --plug-in "${HIGHLIGHT_MARKLINES_PLUGIN}" \
+      --plug-in-param "${CENTER}" -- "$FILE"
+  else
+    "${HIGHLIGHT_BASE_CMD[@]}" -- "$FILE"
+  fi
+  exit $?
 fi
 
 # Sometimes bat is installed as batcat.
