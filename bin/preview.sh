@@ -39,13 +39,25 @@ if [ -z "$CENTER" ]; then
   CENTER=0
 fi
 
+_get_highlight_marklines_plugin() {
+  HIGHLIGHT_MARKLINES_PLUGIN_FILES=(
+    '/usr/share/highlight/plugins/mark_lines.lua'
+    "${XDG_DATA_HOME}/highlight/plugins/mark_lines.lua"
+  )
+  for file in "${HIGHLIGHT_MARKLINES_PLUGIN_FILES[@]}"; do
+    if [[ -r "${file}" ]]; then
+      printf '%s' "${file}"
+      return
+    fi
+  done
+  return 1
+}
 
 if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
   : "${XDG_DATA_HOME:=${HOME}/.local/share}"
-  HIGHLIGHT_MARKLINES_PLUGIN="${XDG_DATA_HOME}/highlight/plugins/mark_lines.lua"
   HIGHLIGHT_BASE_CMD=(highlight --out-format=truecolor --line-numbers
     --line-number-length=0 --quiet --force)
-  if ((CENTER)) && [ -f "${HIGHLIGHT_MARKLINES_PLUGIN}" ]; then
+  if mark_lines_plugin="$(_get_highlight_marklines_plugin)" && ((CENTER)); then
     # lines="$(tput lines)" || exit 1
     # start_line=$((CENTER - (lines / 2) ))
     # start_line=$((start_line > 0 ? start_line : 1))
@@ -57,7 +69,7 @@ if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
     #   --line-range="${start_line}-${end_line}" -- "$FILE")
     # printf '%s\n' "${cmd[@]}"
     # exit
-    "${HIGHLIGHT_BASE_CMD[@]}" --plug-in "${HIGHLIGHT_MARKLINES_PLUGIN}" \
+    "${HIGHLIGHT_BASE_CMD[@]}" --plug-in "${mark_lines_plugin}" \
       --plug-in-param "${CENTER}" -- "$FILE"
   else
     "${HIGHLIGHT_BASE_CMD[@]}" -- "$FILE"
