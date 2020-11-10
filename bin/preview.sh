@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+: "${XDG_DATA_HOME:=${HOME}/.local/share}"
+
 REVERSE="\x1b[7m"
 RESET="\x1b[m"
 
@@ -54,7 +56,6 @@ _get_highlight_marklines_plugin() {
 }
 
 if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
-  : "${XDG_DATA_HOME:=${HOME}/.local/share}"
   HIGHLIGHT_BASE_CMD=(highlight --out-format=truecolor --line-numbers
     --line-number-length=0 --quiet --force)
   if mark_lines_plugin="$(_get_highlight_marklines_plugin)" && ((CENTER)); then
@@ -77,8 +78,8 @@ if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
   exit $?
 fi
 
-if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v bat > /dev/null; then
-  bat --style="${BAT_STYLE:-numbers}" --color=always --pager=never \
+if [ -z "$FZF_PREVIEW_COMMAND" ] && [ "${BATNAME:+x}" ]; then
+  ${BATNAME} --style="${BAT_STYLE:-numbers}" --color=always --pager=never \
       --highlight-line=$CENTER "$FILE"
   exit $?
 fi
