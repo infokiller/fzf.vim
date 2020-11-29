@@ -43,8 +43,8 @@ fi
 
 _get_highlight_marklines_plugin() {
   HIGHLIGHT_MARKLINES_PLUGIN_FILES=(
-    '/usr/share/highlight/plugins/mark_lines.lua'
     "${XDG_DATA_HOME}/highlight/plugins/mark_lines.lua"
+    '/usr/share/highlight/plugins/mark_lines.lua'
   )
   for file in "${HIGHLIGHT_MARKLINES_PLUGIN_FILES[@]}"; do
     if [[ -r "${file}" ]]; then
