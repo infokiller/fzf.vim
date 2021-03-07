@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-: "${XDG_DATA_HOME:=${HOME}/.local/share}"
-
 REVERSE="\x1b[7m"
 RESET="\x1b[m"
 
@@ -47,28 +45,24 @@ if [ -z "$CENTER" ]; then
   CENTER=0
 fi
 
-_get_highlight_marklines_plugin() {
-  HIGHLIGHT_MARKLINES_PLUGIN_FILES=(
-    "${XDG_DATA_HOME}/highlight/plugins/mark_lines.lua"
-    '/usr/share/highlight/plugins/mark_lines.lua'
-  )
-  for file in "${HIGHLIGHT_MARKLINES_PLUGIN_FILES[@]}"; do
-    if [[ -r "${file}" ]]; then
-      printf '%s' "${file}"
-      return
-    fi
-  done
-  return 1
-}
-
-if [ -z "$FZF_PREVIEW_COMMAND" ] && command -v highlight > /dev/null; then
+_maybe_run_highlight() {
   HIGHLIGHT_CMD=(highlight --out-format=truecolor --line-numbers
     --line-number-length=0 --quiet --force)
-  if mark_lines_plugin="$(_get_highlight_marklines_plugin)" && ((CENTER)); then
-    HIGHLIGHT_CMD+=(--plug-in "${mark_lines_plugin}"
-      --plug-in-param "${CENTER}")
+  MARKLINES_PLUGIN='/usr/share/highlight/plugins/mark_lines.lua'
+  if ((CENTER)); then
+    if [[ -r "${MARKLINES_PLUGIN}" ]]; then
+      HIGHLIGHT_CMD+=(--plug-in "${MARKLINES_PLUGIN}"
+        --plug-in-param "${CENTER}")
+    # If highlight doesn't support line highlighting and bat is available, fall
+    # back to bat.
+    elif command -v bat > /dev/null; then
+      return 1
+    fi
   fi
   "${HIGHLIGHT_CMD[@]}" -- "$FILE"
+}
+
+if [ -z "$FZF_PREVIEW_COMMAND" ] && _maybe_run_highlight; then
   exit $?
 fi
 
