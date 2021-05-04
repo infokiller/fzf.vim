@@ -59,21 +59,38 @@ if [ -z "$CENTER" ]; then
   CENTER=0
 fi
 
+_get_highlight_marklines_plugin() {
+  PREFIXES=(
+    "${HOME}/.local"
+    '/usr/local'
+    '/usr'
+  )
+  for dir in "${PREFIXES[@]}"; do
+    local file="${dir}/share/highlight/plugins/mark_lines.lua"
+    if [[ -r "${file}" ]]; then
+      printf '%s' "${file}"
+      return
+    fi
+  done
+  return 1
+}
+
 _maybe_run_highlight() {
-  HIGHLIGHT_CMD=(highlight --out-format=truecolor --line-numbers
-    --line-number-length=0 --quiet --force)
-  MARKLINES_PLUGIN='/usr/share/highlight/plugins/mark_lines.lua'
+  cmd=(highlight '--out-format=truecolor' --line-numbers
+    '--line-number-length=0' --quiet --force)
   if ((CENTER)); then
-    if [[ -r "${MARKLINES_PLUGIN}" ]]; then
-      HIGHLIGHT_CMD+=(--plug-in "${MARKLINES_PLUGIN}"
-        --plug-in-param "${CENTER}")
+    if mark_lines_plugin="$(_get_highlight_marklines_plugin)"; then
+      cmd+=(
+        --plug-in "${mark_lines_plugin}"
+        --plug-in-param "${CENTER}"
+      )
     # If highlight doesn't support line highlighting and bat is available, fall
     # back to bat.
     elif command -v bat > /dev/null; then
       return 1
     fi
   fi
-  "${HIGHLIGHT_CMD[@]}" -- "$FILE"
+  "${cmd[@]}" -- "$FILE"
 }
 
 if [ -z "$FZF_PREVIEW_COMMAND" ] && _maybe_run_highlight; then
